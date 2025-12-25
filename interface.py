@@ -19,6 +19,35 @@ menu_btn = tk.Button(
 )
 menu_btn.pack(side="left", padx=15)
 
+sidebar = tk.Frame(root, bg="#34495e", width=250)
+sidebar_visible = False
+
+tk.Label(
+    sidebar,
+    text="MENU",
+    bg="#34495e",
+    fg="white",
+    font=("Arial", 14, "bold")
+).pack(pady=20)
+
+tk.Button(sidebar, text="Tambah Barang", width=20).pack(pady=5)
+tk.Button(sidebar, text="Kurangi Barang", width=20).pack(pady=5)
+tk.Button(sidebar, text="Laporan", width=20).pack(pady=5)
+
+content = tk.Frame(root, bg="#ecf0f1")
+content.pack(expand=True, fill="both")
+
+def toggle_sidebar():
+    global sidebar_visible
+    if sidebar_visible:
+        sidebar.pack_forget()
+        sidebar_visible = False
+    else:
+        sidebar.pack(side="left", fill="y")
+        sidebar_visible = True
+
+menu_btn.config(command=toggle_sidebar)
+
 columns = ("nama", "jumlah", "harga", "aksi")
 
 table = ttk.Treeview(root, columns=columns, show="headings")
