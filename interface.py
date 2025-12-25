@@ -174,4 +174,27 @@ def tambah():
 
 buttonTambah = tk.Button(root, text="Tambah Barang", command=tambah)
 buttonTambah.pack(side="right", anchor="n", pady=30, padx=30)
+
+# Pembayaran
+
+def input():
+    window = tk.Toplevel(root)
+    window.title("Tambah Barang")
+    window.geometry("800x600")
+
+# Member
+# Tabel
+columns = ("id", "nama", "kode", "masa_aktif")
+
+table = ttk.Treeview(root, columns=columns, show="headings")
+table.heading("id", text="ID")
+table.heading("nama", text="Nama")
+table.heading("kode", text="Kode")
+table.heading("masa_aktif", text="Masa Aktif")
+
+table.column("id", width=100)
+table.column("nama", width=100, anchor="center")
+table.column("kode", width=150, anchor="center")
+table.column("masa_aktif", width=120, anchor="center")
+
 root.mainloop()
