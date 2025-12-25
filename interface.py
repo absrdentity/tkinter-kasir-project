@@ -6,6 +6,7 @@ root = tk.Tk()
 root.geometry("1200x800")
 root.title("Program Sistem Kasir")
 
+# Hamburger Menu
 topbar = tk.Frame(root, bg="#2c3e50", height=50)
 topbar.pack(side="top", fill="x")
 
@@ -19,23 +20,31 @@ menu_btn = tk.Button(
 )
 menu_btn.pack(side="left", padx=15)
 
-sidebar = tk.Frame(root, bg="#34495e", width=250)
-sidebar_visible = False
+# ================= MAIN CONTAINER =================
+main_container = tk.Frame(root)
+main_container.pack(fill="both", expand=True)
+
+# ================= SIDEBAR =================
+sidebar = tk.Frame(main_container, bg="#34495e", width=250)
 
 tk.Label(
     sidebar,
-    text="MENU",
     bg="#34495e",
     fg="white",
     font=("Arial", 14, "bold")
 ).pack(pady=20)
 
-tk.Button(sidebar, text="Tambah Barang", width=20).pack(pady=5)
-tk.Button(sidebar, text="Kurangi Barang", width=20).pack(pady=5)
-tk.Button(sidebar, text="Laporan", width=20).pack(pady=5)
+tk.Button(sidebar, text="Barang", width=20).pack(pady=5)
+tk.Button(sidebar, text="Pembayaran", width=20).pack(pady=5)
+tk.Button(sidebar, text="Karyawan", width=20).pack(pady=5)
+tk.Button(sidebar, text="Member", width=20).pack(pady=5)
 
-content = tk.Frame(root, bg="#ecf0f1")
-content.pack(expand=True, fill="both")
+# ================= CONTENT =================
+content = tk.Frame(main_container, bg="#ecf0f1")
+content.pack(side="right", fill="both", expand=True)
+
+# ================= TOGGLE FUNCTION =================
+sidebar_visible = False
 
 def toggle_sidebar():
     global sidebar_visible
@@ -48,6 +57,9 @@ def toggle_sidebar():
 
 menu_btn.config(command=toggle_sidebar)
 
+# Barang
+
+# Tabel
 columns = ("nama", "jumlah", "harga", "aksi")
 
 table = ttk.Treeview(root, columns=columns, show="headings")
@@ -56,12 +68,12 @@ table.heading("jumlah", text="Jumlah")
 table.heading("harga", text="Harga")
 table.heading("aksi", text="Aksi")
 
-table.column("nama", width=200)
+table.column("nama", width=100)
 table.column("jumlah", width=100, anchor="center")
 table.column("harga", width=150, anchor="center")
 table.column("aksi", width=120, anchor="center")
 
-table.pack(pady=50, padx=50, fill="x")
+table.pack(side="bottom", anchor="n", pady=50, padx=50, fill="x")
 
 def tambah():
     window = tk.Toplevel(root)
@@ -159,16 +171,6 @@ def tambah():
     e3.grid(row=2, column=1)
 
     tk.Button(window, text="Submit", command=submit).grid(row=3, column=1, pady=15)
-
-
-def kurang():
-    root = tk.Tk()
-    word = tk.Label(root, text="Mengurangi Barang")
-    word.pack()
-    root.mainloop()
-
-def edit():
-    pass
 
 buttonTambah = tk.Button(root, text="Tambah Barang", command=tambah)
 buttonTambah.pack(side="right", anchor="n", pady=30, padx=30)
