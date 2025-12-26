@@ -43,6 +43,10 @@ def buka_form_kasir():
                 # Tambahkan kasir baru
                 Kasir.tambah(e1.get(), e2.get(), e3.get())
                 messagebox.showinfo("Sukses", f"Kasir {e1.get()} berhasil ditambahkan!")
+                cr.execute("""
+                INSERT INTO Kasir (nama, password, kode)
+                VALUES (?, ?, ?)
+                """, (e1.get(), e2.get(), e3.get()))
                 w.destroy()
             except Exception as e:
                 messagebox.showerror("Error", f"Gagal menambah kasir: {str(e)}")
@@ -178,6 +182,10 @@ def tampilan():
         )
         if confirm:
             table_barang.delete(item)
+            cr.execute("""
+                DELETE FROM Barang (id, nama, harga, stok)
+                VALUES (?, ?, ?, ?)
+            """)
 
     def tambah():
         win = tk.Toplevel(root)
@@ -209,6 +217,9 @@ def tampilan():
                 "",
                 "end",
                 values=(nama, jumlah, harga, "✏️ Edit | 🗑 Hapus")
+            )
+            cr.execute(
+                "INSERT INTO Barang (id, nama, harga, stok) VALUES (?, ?, ?, ?)"
             )
             win.destroy()
 
@@ -253,6 +264,11 @@ def tampilan():
                 item,
                 values=(nama, jumlah, harga, "✏️ Edit | 🗑 Hapus")
             )
+            cr.execute("""
+                UPDATE Barang
+                SET jumlah=?, harga=?
+                WHERE nama=?
+            """, (jumlah, harga, data[0]))
             window.destroy()
 
         tk.Button(window, text="Update", command=update).grid(row=3, column=1, pady=15)
