@@ -1,4 +1,3 @@
-# database.py
 import sqlite3
 from datetime import datetime
 
@@ -25,15 +24,15 @@ cr.execute("""CREATE TABLE IF NOT EXISTS Member(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     nama TEXT,
     kode TEXT UNIQUE,
-    diskon INTEGER
+    masa_aktif TEXT
 )""")
 
 cr.execute("""CREATE TABLE IF NOT EXISTS Riwayat(
     id INTEGER PRIMARY KEY AUTOINCREMENT,
-    kasir TEXT,
+    tanggal TEXT,
     total INTEGER,
-    jumlah INTEGER,
-    waktu TEXT
+    jumlah_barang INTEGER,
+    kasir TEXT
 )""")
 
 conn.commit()  # Commit pembuatan tabel
@@ -83,18 +82,19 @@ class Pembayaran:
             self.diskon = 0
             self.total_akhir = self.total_awal
             return
-        cr.execute("SELECT diskon FROM Member WHERE kode=?", (kode_member,))
+        cr.execute("SELECT masa_aktif FROM Member WHERE kode=?", (kode_member,))
         m = cr.fetchone()
-        if m:
-            self.diskon = self.total_awal * m[0] // 100
+        if m and datetime.strptime(m[0], "%Y-%m-%d") > datetime.now():
+            # Jika masa aktif masih berlaku, berikan diskon 10% sebagai contoh (sesuaikan jika perlu)
+            self.diskon = self.total_awal * 10 // 100
             self.total_akhir = self.total_awal - self.diskon
         else:
             self.diskon = 0
             self.total_akhir = self.total_awal
 
     def simpan_transaksi(self, kasir_aktif):
-        waktu = datetime.now().strftime("%d-%m-%Y %H:%M:%S")
+        waktu = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         jumlah_item = sum(b[2] for b in self.keranjang)
-        cr.execute("INSERT INTO Riwayat (kasir, total, jumlah, waktu) VALUES (?,?,?,?)",
-                   (kasir_aktif, self.total_akhir, jumlah_item, waktu))
+        cr.execute("INSERT INTO Riwayat (tanggal, total, jumlah_barang, kasir) VALUES (?,?,?,?)",
+                   (waktu, self.total_akhir, jumlah_item, kasir_aktif))
         conn.commit()

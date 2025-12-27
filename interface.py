@@ -1,7 +1,8 @@
 from tkinter import *
 from tkinter import messagebox, ttk
 import tkinter as tk
-from datetime import datetime
+from datetime import datetime, timedelta
+import random
 from database import Kasir, User, Pembayaran, cr
 
 # Buat root utama di awal
@@ -181,11 +182,9 @@ def tampilan():
             "Yakin ingin menghapus data ini?"
         )
         if confirm:
+            data = table_barang.item(item, "values")
             table_barang.delete(item)
-            cr.execute("""
-                DELETE FROM Barang (id, nama, harga, stok)
-                VALUES (?, ?, ?, ?)
-            """)
+            cr.execute("DELETE FROM Barang WHERE nama=?", (data[0],))
 
     def tambah():
         win = tk.Toplevel(root)
@@ -213,14 +212,10 @@ def tampilan():
                 messagebox.showerror("Error", "Jumlah dan Harga harus angka")
                 return
 
-            table_barang.insert(
-                "",
-                "end",
-                values=(nama, jumlah, harga, "✏️ Edit | 🗑 Hapus")
-            )
-            cr.execute(
-                "INSERT INTO Barang (id, nama, harga, stok) VALUES (?, ?, ?, ?)"
-            )
+            # Simpan ke database
+            cr.execute("INSERT INTO Barang (nama, harga, stok) VALUES (?, ?, ?)", (nama, harga, jumlah))
+            # Refresh tabel barang
+            load_barang()
             win.destroy()
 
         tk.Button(win, text="Simpan", command=submit).grid(row=3, column=1, pady=10)
@@ -264,14 +259,19 @@ def tampilan():
                 item,
                 values=(nama, jumlah, harga, "✏️ Edit | 🗑 Hapus")
             )
-            cr.execute("""
-                UPDATE Barang
-                SET jumlah=?, harga=?
-                WHERE nama=?
-            """, (jumlah, harga, data[0]))
+            cr.execute("UPDATE Barang SET harga=?, stok=? WHERE nama=?", (harga, jumlah, data[0]))
             window.destroy()
 
         tk.Button(window, text="Update", command=update).grid(row=3, column=1, pady=15)
+
+    def load_barang():
+        # Clear tabel
+        for item in table_barang.get_children():
+            table_barang.delete(item)
+        # Load dari database
+        cr.execute("SELECT nama, stok, harga FROM Barang")
+        for row in cr.fetchall():
+            table_barang.insert("", "end", values=(row[0], row[1], row[2], "✏️ Edit | 🗑 Hapus"))
 
     tk.Button(
         page_barang,
@@ -288,23 +288,107 @@ def tampilan():
 
     tk.Label(page_pembayaran, text="Halaman Pembayaran", font=("Arial", 20)).pack(pady=20)
 
-    tk.Label(page_pembayaran, text="Total Belanja:").pack()
-    entry_total = tk.Entry(page_pembayaran)
-    entry_total.pack()
+    # Tabel Barang Tersedia
+    tk.Label(page_pembayaran, text="Barang Tersedia").pack()
+    columns_barang_tersedia = ("nama", "harga", "stok", "aksi")
+    table_barang_tersedia = ttk.Treeview(page_pembayaran, columns=columns_barang_tersedia, show="headings", height=5)
+    table_barang_tersedia.heading("nama", text="Nama")
+    table_barang_tersedia.heading("harga", text="Harga")
+    table_barang_tersedia.heading("stok", text="Stok")
+    table_barang_tersedia.heading("aksi", text="Aksi")
+    table_barang_tersedia.column("nama", width=100)
+    table_barang_tersedia.column("harga", width=100, anchor="center")
+    table_barang_tersedia.column("stok", width=100, anchor="center")
+    table_barang_tersedia.column("aksi", width=100, anchor="center")
 
+    def load_barang_tersedia():
+        for item in table_barang_tersedia.get_children():
+            table_barang_tersedia.delete(item)
+        cr.execute("SELECT nama, harga, stok FROM Barang")
+        for row in cr.fetchall():
+            table_barang_tersedia.insert("", "end", values=(row[0], row[1], row[2], "Tambah"))
+
+    def on_barang_click(event):
+        item = table_barang_tersedia.identify_row(event.y)
+        column = table_barang_tersedia.identify_column(event.x)
+        if not item or column != "#4":
+            return
+        data = table_barang_tersedia.item(item, "values")
+        nama, harga, stok = data[0], int(data[1]), int(data[2])
+        win = tk.Toplevel(root)
+        win.title("Tambah ke Keranjang")
+        win.geometry("300x150")
+        tk.Label(win, text=f"Nama: {nama}").pack()
+        tk.Label(win, text=f"Harga: {harga}").pack()
+        tk.Label(win, text="Jumlah:").pack()
+        e_jumlah = tk.Entry(win)
+        e_jumlah.pack()
+        def tambah_keranjang():
+            try:
+                jumlah = int(e_jumlah.get())
+                if jumlah > stok:
+                    messagebox.showerror("Error", "Stok tidak cukup")
+                    return
+                total_item = jumlah * harga
+                table_keranjang.insert("", "end", values=(nama, jumlah, harga, total_item))
+                hitung_total()
+                win.destroy()
+            except ValueError:
+                messagebox.showerror("Error", "Jumlah harus angka")
+        tk.Button(win, text="Tambah", command=tambah_keranjang).pack()
+
+    table_barang_tersedia.bind("<Button-1>", on_barang_click)
+    table_barang_tersedia.pack(fill="both", expand=True, padx=20, pady=10)
+
+    # Keranjang Belanja
+    tk.Label(page_pembayaran, text="Keranjang Belanja").pack()
+    columns_keranjang = ("nama", "jumlah", "harga", "total")
+    table_keranjang = ttk.Treeview(page_pembayaran, columns=columns_keranjang, show="headings", height=5)
+    table_keranjang.heading("nama", text="Nama")
+    table_keranjang.heading("jumlah", text="Jumlah")
+    table_keranjang.heading("harga", text="Harga")
+    table_keranjang.heading("total", text="Total")
+    table_keranjang.column("nama", width=100)
+    table_keranjang.column("jumlah", width=100, anchor="center")
+    table_keranjang.column("harga", width=100, anchor="center")
+    table_keranjang.column("total", width=100, anchor="center")
+    table_keranjang.pack(fill="both", expand=True, padx=20, pady=10)
+
+    # Total Harga
+    total_label = tk.Label(page_pembayaran, text="Total: 0", font=("Arial", 14, "bold"))
+    total_label.pack(pady=10)
+
+    def hitung_total():
+        total = 0
+        for item in table_keranjang.get_children():
+            values = table_keranjang.item(item, "values")
+            total += int(values[3])
+        total_label.config(text=f"Total: {total}")
+
+    # Input Bayar
     tk.Label(page_pembayaran, text="Bayar:").pack()
     entry_bayar = tk.Entry(page_pembayaran)
     entry_bayar.pack()
 
     def proses_pembayaran():
         try:
-            total = float(entry_total.get())
+            total = int(total_label.cget("text").split(": ")[1])
             bayar = float(entry_bayar.get())
             kembalian = bayar - total
             if kembalian < 0:
                 messagebox.showerror("Error", "Uang tidak cukup")
             else:
+                # Hitung jumlah barang total
+                jumlah_barang = sum(int(table_keranjang.item(item, "values")[1]) for item in table_keranjang.get_children())
+                # Simpan ke riwayat dengan nama kasir dari session
+                tanggal = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                cr.execute("INSERT INTO Riwayat (tanggal, total, jumlah_barang, kasir) VALUES (?, ?, ?, ?)", (tanggal, total, jumlah_barang, kasir_login))
                 messagebox.showinfo("Pembayaran", f"Kembalian: {kembalian}")
+                # Clear keranjang
+                for item in table_keranjang.get_children():
+                    table_keranjang.delete(item)
+                hitung_total()
+                entry_bayar.delete(0, END)
         except ValueError:
             messagebox.showerror("Error", "Masukkan angka yang valid")
 
@@ -339,6 +423,7 @@ def tampilan():
 
     columns_member = ("id", "nama", "kode", "masa_aktif")
 
+    table_member = ttk.Treeview
     table_member = ttk.Treeview(page_member, columns=columns_member, show="headings")
     table_member.heading("id", text="ID")
     table_member.heading("nama", text="Nama")
@@ -350,6 +435,49 @@ def tampilan():
     table_member.column("kode", width=150, anchor="center")
     table_member.column("masa_aktif", width=120, anchor="center")
 
+    def load_member():
+        for item in table_member.get_children():
+            table_member.delete(item)
+        cr.execute("SELECT id, nama, kode, masa_aktif FROM Member")
+        for row in cr.fetchall():
+            table_member.insert("", "end", values=row)
+
+    def tambah_member():
+        win = tk.Toplevel(root)
+        win.title("Tambah Member")
+        win.geometry("400x250")
+
+        tk.Label(win, text="Nama Member").grid(row=0, column=0, padx=10, pady=5)
+        e_nama = tk.Entry(win)
+        e_nama.grid(row=0, column=1, padx=10, pady=5)
+
+        def submit():
+            nama = e_nama.get().strip()
+            if not nama:
+                messagebox.showerror("Error", "Nama tidak boleh kosong")
+                return
+
+            # Generate kode unik 3 digit random
+            kode = str(random.randint(100, 999))
+            # Pastikan unik
+            while True:
+                cr.execute("SELECT kode FROM Member WHERE kode=?", (kode,))
+                if not cr.fetchone():
+                    break
+                kode = str(random.randint(100, 999))
+
+            # Masa aktif 30 hari dari sekarang
+            masa_aktif = (datetime.now() + timedelta(days=30)).strftime("%Y-%m-%d")
+
+            # Simpan ke database
+            cr.execute("INSERT INTO Member (nama, kode, masa_aktif) VALUES (?, ?, ?)", (nama, kode, masa_aktif))
+            load_member()
+            win.destroy()
+
+        tk.Button(win, text="Tambah", command=submit).grid(row=1, column=1, pady=10)
+
+    tk.Button(page_member, text="Tambah Member", command=tambah_member).pack(anchor="e", padx=20, pady=10)
+
     table_member.pack(fill="both", expand=True, padx=20, pady=20)
 
     pages["member"] = page_member
@@ -359,16 +487,25 @@ def tampilan():
 
     tk.Label(page_riwayat, text="Halaman Riwayat", font=("Arial", 20)).pack(pady=20)
 
-    columns_riwayat = ("tanggal", "total", "kasir")
+    columns_riwayat = ("tanggal", "jumlah_barang", "total", "kasir")
 
     table_riwayat = ttk.Treeview(page_riwayat, columns=columns_riwayat, show="headings")
     table_riwayat.heading("tanggal", text="Tanggal")
-    table_riwayat.heading("total", text="Total")
+    table_riwayat.heading("jumlah_barang", text="Jumlah Barang")
+    table_riwayat.heading("total", text="Total Harga")
     table_riwayat.heading("kasir", text="Kasir")
 
     table_riwayat.column("tanggal", width=150)
+    table_riwayat.column("jumlah_barang", width=100, anchor="center")
     table_riwayat.column("total", width=100, anchor="center")
     table_riwayat.column("kasir", width=150, anchor="center")
+
+    def load_riwayat():
+        for item in table_riwayat.get_children():
+            table_riwayat.delete(item)
+        cr.execute("SELECT tanggal, jumlah_barang, total, kasir FROM Riwayat")
+        for row in cr.fetchall():
+            table_riwayat.insert("", "end", values=row)
 
     table_riwayat.pack(fill="both", expand=True, padx=20, pady=20)
 
@@ -379,11 +516,13 @@ def tampilan():
         for page in pages.values():
             page.pack_forget()
         pages["barang"].pack(fill="both", expand=True)
+        load_barang()
 
     def show_pembayaran():
         for page in pages.values():
             page.pack_forget()
         pages["pembayaran"].pack(fill="both", expand=True)
+        load_barang_tersedia()
 
     def show_karyawan():
         for page in pages.values():
@@ -394,11 +533,13 @@ def tampilan():
         for page in pages.values():
             page.pack_forget()
         pages["member"].pack(fill="both", expand=True)
+        load_member()
 
     def show_riwayat():
         for page in pages.values():
             page.pack_forget()
         pages["riwayat"].pack(fill="both", expand=True)
+        load_riwayat()
 
     # Connect buttons to show pages
     btn_barang.config(command=show_barang)
